@@ -13,7 +13,7 @@ TYPE1 = 1    # is not used
 losses=True
 SIM_TIME = 500000
 # SIM_TIME = 500000000
-
+number_servers=1
 # arrivals=0
 users=0
 delayed_packets=0 #number of packets that experience waiting delay
@@ -91,7 +91,7 @@ def arrival(time, FES, queue):
         users -=1
 
     # if the server is idle start the service
-    if users==1:
+    if users<= number_servers:
         
         # sample the service time
         service_time = random.expovariate(1.0/SERVICE)
@@ -117,7 +117,7 @@ def departure(time, FES, queue):
     data.dep += 1
     data.ut += users*(time-data.oldT)
     
-    if users>1:
+    if users>number_servers:
         delayed_packets +=1
         nextclient=queue[0]
         data.wdelay += (time-nextclient.arrival_time)
@@ -127,7 +127,7 @@ def departure(time, FES, queue):
     users -= 1
     
     # see whether there are more clients to in the line
-    if users >0:
+    if users > number_servers-1:
         # sample the service time
         service_time = random.expovariate(1.0/SERVICE)
 
