@@ -10,16 +10,17 @@ LOAD=0.85
 SERVICE = 10.0 # av service time
 ARRIVAL   = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    # is not used
-losses=True
+losses=False
 SIM_TIME = 500000
 # SIM_TIME = 500000000
-number_servers=1
+number_servers=2
 # arrivals=0
 users=0
 delayed_packets=0 #number of packets that experience waiting delay
 BusyServer=False # True: server is currently busy; False: server is currently idle
 B=5
 MM1=[]
+server_list=[]
 
 
 # ******************************************************************************
@@ -50,16 +51,18 @@ class Client:
 class Server(object):
 
     # constructor
-    def __init__(self):
+    def __init__(self,is_idle,busy_t,depar_time):
 
         # whether the server is idle or not
-        self.idle = True
+        self.idle = is_idle
+        self.busy_time=busy_t
+        self.dt=depar_time
 
 
 # ******************************************************************************
 
 # arrivals *********************************************************************
-def arrival(time, FES, queue):
+def arrival(time, FES, queue, servers):
     global users
     
     #print("Arrival no. ",data.arr+1," at time ",time," with ",users," users" )
@@ -67,8 +70,8 @@ def arrival(time, FES, queue):
     # cumulate statistics
     data.arr += 1
     data.ut += users*(time-data.oldT)
-    if users>0:
-        data.uq += (users-1)*(time-data.oldT)
+    if users>number_servers:
+        data.uq += (users-number_servers)*(time-data.oldT)
     data.oldT = time
 
     # sample the time until the next event
@@ -91,7 +94,7 @@ def arrival(time, FES, queue):
         users -=1
 
     # if the server is idle start the service
-    if users<= number_servers:
+    if users <= number_servers:
         
         # sample the service time
         service_time = random.expovariate(1.0/SERVICE)
@@ -100,26 +103,39 @@ def arrival(time, FES, queue):
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
         
-        data.busy_time +=service_time
+        for i in range(len(servers)):
+            if servers[i].idle:           
+                servers[i].idle=False
+                servers[i].busy_t+=service_time
+                servers[i].dt=time + service_time
+                break
+        
+        
 # ******************************************************************************
 
 # departures *******************************************************************
-def departure(time, FES, queue):
+def departure(time, FES, queue, servers):
     global users
     global delayed_packets
     # get the first element from the queue
     client = queue.pop(0)
     
+    for i in range(len(servers)):
+            if not servers[i].idle and servers[i].dt==time: 
+                servers[i].idle=True
+                break
     
     #print("Departure no. ",data.dep+1," at time ",time," with ",users," users" )
     
     # cumulate statistics
     data.dep += 1
     data.ut += users*(time-data.oldT)
+    if users>number_servers:
+        data.uq += (users-number_servers)*(time-data.oldT)
     
     if users>number_servers:
         delayed_packets +=1
-        nextclient=queue[0]
+        nextclient=queue[number_servers-1]
         data.wdelay += (time-nextclient.arrival_time)
     # do whatever we need to do when clients go away
     
@@ -133,8 +149,14 @@ def departure(time, FES, queue):
 
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
-        data.busy_time +=service_time
-        data.uq += (users-1)*(time-data.oldT)
+        
+        for i in range(len(servers)):
+            if servers[i].idle:           
+                servers[i].idle=False
+                servers[i].busy_t+=service_time
+                servers[i].dt=time + service_time
+                break
+        
     data.oldT = time
         
 # ******************************************************************************
@@ -155,15 +177,19 @@ FES = PriorityQueue()
 # schedule the first arrival at t=0
 FES.put((0, "arrival"))
 
+server=Server(True, 0,0)
+for i in range(number_servers):
+    servers.append(server)
+
 # simulate until the simulated time reaches a constant
 while time < SIM_TIME:
     (time, event_type) = FES.get()
 
     if event_type == "arrival":
-        arrival(time, FES, MM1)
+        arrival(time, FES, MM1, server_list)
 
     elif event_type == "departure":
-        departure(time, FES, MM1)
+        departure(time, FES, MM1, server_list)
 
 # print output data
 print("MEASUREMENTS ***********************************************************")       
