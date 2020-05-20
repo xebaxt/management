@@ -10,7 +10,7 @@ LOAD=0.85
 SERVICE = 10.0 # av service time
 ARRIVAL   = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    # is not used
-losses=False
+losses=True
 SIM_TIME = 500000
 # SIM_TIME = 500000000
 number_servers=2
@@ -51,12 +51,13 @@ class Client:
 class Server(object):
 
     # constructor
-    def __init__(self,is_idle,busy_t,depar_time):
+    def __init__(self,is_idle,busy_t,depar_time,numDep):
 
         # whether the server is idle or not
         self.idle = is_idle
         self.busy_time=busy_t
         self.dt=depar_time
+        self.dep_num=numDep
 
 
 # ******************************************************************************
@@ -106,7 +107,7 @@ def arrival(time, FES, queue, servers):
         for i in range(len(servers)):
             if servers[i].idle:           
                 servers[i].idle=False
-                servers[i].busy_t+=service_time
+                servers[i].busy_time+=service_time
                 servers[i].dt=time + service_time
                 break
         
@@ -123,6 +124,7 @@ def departure(time, FES, queue, servers):
     for i in range(len(servers)):
             if not servers[i].idle and servers[i].dt==time: 
                 servers[i].idle=True
+                servers[i].dep_num+=1
                 break
     
     #print("Departure no. ",data.dep+1," at time ",time," with ",users," users" )
@@ -153,7 +155,7 @@ def departure(time, FES, queue, servers):
         for i in range(len(servers)):
             if servers[i].idle:           
                 servers[i].idle=False
-                servers[i].busy_t+=service_time
+                servers[i].busy_time+=service_time
                 servers[i].dt=time + service_time
                 break
         
@@ -177,9 +179,9 @@ FES = PriorityQueue()
 # schedule the first arrival at t=0
 FES.put((0, "arrival"))
 
-server=Server(True, 0,0)
+
 for i in range(number_servers):
-    servers.append(server)
+    server_list.append(Server(True, 0,0,0))
 
 # simulate until the simulated time reaches a constant
 while time < SIM_TIME:
@@ -203,7 +205,12 @@ print("Average number of users in queuing line: ",data.uq/time) #Mean number of 
 print("\nAverage delay: ",data.delay/data.dep)  #Average time in the queue E[T]
 print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting lineE[Tw]
 print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
-print("\nBusy time: ",data.busy_time, "- simulation time: ",SIM_TIME)
+for i in range(len(server_list)):
+    print("\n***Server ",i+1,"***")
+    print("  Busy time:",server_list[i].busy_time)
+    print("  Average service time:",server_list[i].busy_time/server_list[i].dep_num)
+    print("  No. of departures:",server_list[i].dep_num)
+print("\nSimulation time: ",SIM_TIME)
 print("\nActual queue size: ",len(MM1))
 
 if len(MM1)>0:
