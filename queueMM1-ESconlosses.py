@@ -6,19 +6,19 @@ from queue import Queue, PriorityQueue
 # ******************************************************************************
 # Constants
 # ******************************************************************************
-LOAD=0.85
+LOAD = 0.85
 SERVICE = 10.0 # av service time
-ARRIVAL   = SERVICE/LOAD # av inter-arrival time
+ARRIVAL = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    # is not used
-losses=True
+losses = False #False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
-# SIM_TIME = 500000000
 number_servers=2
-# arrivals=0
+assignment= "ordered" # ordered/ random / roundRobin / leastCostly; 
 users=0
-delayed_packets=0 #number of packets that experience waiting delay
-BusyServer=False # True: server is currently busy; False: server is currently idle
-B=5
+counter=0
+delayed_packets=0 # Number of packets that experience waiting delay
+BusyServer = False # True: server is currently busy; False: server is currently idle
+B=5 #Capacity of waiting line (only used if losses=True)
 MM1=[]
 server_list=[]
 
@@ -28,15 +28,17 @@ server_list=[]
 # ******************************************************************************
 class Measure:
     def __init__(self,Narr,Ndep,NAveraegUser,NAverageUserQueue,OldTimeEvent,AverageDelay,AverageWaitDelay,busy_time,lost_packets):
-        self.arr = Narr #number of arr
-        self.dep = Ndep #number of departures
-        self.ut = NAveraegUser #number of average users
-        self.uq = NAverageUserQueue #number of average users in queue line
-        self.oldT = OldTimeEvent #
+        self.arr = Narr # Number of arrivals
+        self.dep = Ndep # Number of departures
+        self.ut = NAveraegUser # Number of average users
+        self.uq = NAverageUserQueue # Number of average users in queue line
+        self.oldT = OldTimeEvent 
         self.delay = AverageDelay
         self.wdelay = AverageWaitDelay
-        self.busy_time = busy_time #time that server spends in a busy state
+        self.busy_time = busy_time # Time that server spends in a busy state
         self.lp=lost_packets
+        
+        
 # ******************************************************************************
 # Client
 # ******************************************************************************
@@ -45,30 +47,31 @@ class Client:
         self.type = type
         self.arrival_time = arrival_time
 
+
 # ******************************************************************************
 # Server
 # ******************************************************************************
 class Server(object):
 
     # constructor
-    def __init__(self,is_idle,busy_t,depar_time,numDep):
+    def __init__(self,server_id,is_idle,busy_t,depar_time,numDep,server_cost):
 
         # whether the server is idle or not
+        self.id=server_id
         self.idle = is_idle
         self.busy_time=busy_t
         self.dt=depar_time
         self.dep_num=numDep
+        self.cost=server_cost
 
 
 # ******************************************************************************
-
-# arrivals *********************************************************************
+# Arrivals 
+# ******************************************************************************
 def arrival(time, FES, queue, servers):
     global users
-    
-    #print("Arrival no. ",data.arr+1," at time ",time," with ",users," users" )
-    
-    # cumulate statistics
+    global counter
+
     data.arr += 1
     data.ut += users*(time-data.oldT)
     if users>number_servers:
@@ -99,25 +102,38 @@ def arrival(time, FES, queue, servers):
         
         # sample the service time
         service_time = random.expovariate(1.0/SERVICE)
-        #service_time = 1 + random.uniform(0, SEVICE_TIME)
 
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
         
-        for i in range(len(servers)):
+        if assignment == "ordered":
+            j=0
+        elif assignment == "random":
+            random.shuffle(servers)
+            j=0
+        elif assignment == "roundRobin":
+            j=counter
+            if counter == len(servers):
+                counter=0
+        elif assignment == "leastCostly":
+            j=0
+            servers.sort(key=lambda x: x.cost, reverse=False)
+        
+        for i in range(j,len(servers)):
             if servers[i].idle:           
                 servers[i].idle=False
                 servers[i].busy_time+=service_time
                 servers[i].dt=time + service_time
+                counter=i
                 break
         
-        
 # ******************************************************************************
-
-# departures *******************************************************************
+# Departures
+# ******************************************************************************
 def departure(time, FES, queue, servers):
     global users
     global delayed_packets
+    global counter
     # get the first element from the queue
     client = queue.pop(0)
     
@@ -126,10 +142,7 @@ def departure(time, FES, queue, servers):
                 servers[i].idle=True
                 servers[i].dep_num+=1
                 break
-    
-    #print("Departure no. ",data.dep+1," at time ",time," with ",users," users" )
-    
-    # cumulate statistics
+
     data.dep += 1
     data.ut += users*(time-data.oldT)
     if users>number_servers:
@@ -139,8 +152,7 @@ def departure(time, FES, queue, servers):
         delayed_packets +=1
         nextclient=queue[number_servers-1]
         data.wdelay += (time-nextclient.arrival_time)
-    # do whatever we need to do when clients go away
-    
+
     data.delay += (time-client.arrival_time)
     users -= 1
     
@@ -152,15 +164,28 @@ def departure(time, FES, queue, servers):
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
         
-        for i in range(len(servers)):
+        #Modify the server list order according to the assignment algorithm 
+        if assignment == "ordered":
+            j=0
+        elif assignment == "random":
+            random.shuffle(servers)
+            j=0
+        elif assignment == "roundRobin":
+            j=counter
+        elif assignment == "leastCostly":
+            pass
+        
+        for i in range(j,len(servers)):
             if servers[i].idle:           
                 servers[i].idle=False
                 servers[i].busy_time+=service_time
                 servers[i].dt=time + service_time
+                counter=i
                 break
         
     data.oldT = time
         
+    
 # ******************************************************************************
 # the "main" of the simulation
 # ******************************************************************************
@@ -181,7 +206,7 @@ FES.put((0, "arrival"))
 
 
 for i in range(number_servers):
-    server_list.append(Server(True, 0,0,0))
+    server_list.append(Server(i+1,True, 0,0,0, random.randint(1,10)))
 
 # simulate until the simulated time reaches a constant
 while time < SIM_TIME:
@@ -204,12 +229,21 @@ print("\nAverage number of users: ",data.ut/time) #Mean number of customers in t
 print("Average number of users in queuing line: ",data.uq/time) #Mean number of customers in waiting line E[Nw]
 print("\nAverage delay: ",data.delay/data.dep)  #Average time in the queue E[T]
 print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting lineE[Tw]
-print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
+if delayed_packets>0:
+    print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
+else:
+    print("Average waiting delay considering only packets that experience delay: No delayed packages")
+print("\nAlgorithm to assign new requests to an available server:", assignment)
+server_list.sort(key=lambda x: x.id, reverse=False)
 for i in range(len(server_list)):
     print("\n***Server ",i+1,"***")
     print("  Busy time:",server_list[i].busy_time)
-    print("  Average service time:",server_list[i].busy_time/server_list[i].dep_num)
+    if server_list[i].dep_num>0:
+        print("  Average service time:",server_list[i].busy_time/server_list[i].dep_num)
+    else:
+        print("  Average service time: Not used")
     print("  No. of departures:",server_list[i].dep_num)
+    print("  Cost:",server_list[i].cost)
 print("\nSimulation time: ",SIM_TIME)
 print("\nActual queue size: ",len(MM1))
 

@@ -19,6 +19,8 @@ class Measure:
         self.wdelay = AverageWaitDelay #time in the waiting line
         self.busy_time = busy_time #time that server spends in a busy state
         self.lp=lost_packets
+        
+        
 # ******************************************************************************
 # Client
 # ******************************************************************************
@@ -26,6 +28,7 @@ class Client:
     def __init__(self,type,arrival_time):
         self.type = type
         self.arrival_time = arrival_time
+
 
 # ******************************************************************************
 # Server
@@ -76,6 +79,7 @@ def arrival(time, FES, queue):
 
         data.busy_time +=service_time
 
+
 # ******************************************************************************
 # departures 
 # ******************************************************************************
@@ -111,6 +115,7 @@ def departure(time, FES, queue):
         
     data.oldT = time
         
+    
 # ******************************************************************************
 # the "main" of the simulation
 # ******************************************************************************
@@ -132,12 +137,13 @@ mm1_vector=[]
 arrival_rate=[]
 busy_time_list=[]
 lost_p=[]
-for LOAD in np.arange(0.05, 5, 0.05):
+
+for LOAD in np.arange(0.05, 5, 0.05): 
 
     SERVICE = 10.0 # av service time
     ARRIVAL   = SERVICE/LOAD # av inter-arrival time 
     TYPE1 = 1 
-    SIM_TIME = 500000 #simulation time
+    SIM_TIME = 5000 #simulation time
     # arrivals=0
     users=0
     delayed_packets=0 #number of packets that experience waiting delay
