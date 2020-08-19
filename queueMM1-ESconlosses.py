@@ -12,8 +12,10 @@ ARRIVAL = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    # is not used
 losses = False #False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
-number_servers=2
+number_servers=1
 assignment= "ordered" # ordered/ random / roundRobin / leastCostly; 
+service_time_distribution= "exponential" # exponential/ constant/ uniform/ gaussian/  
+variance=0.1
 users=0
 counter=0
 delayed_packets=0 # Number of packets that experience waiting delay
@@ -101,31 +103,12 @@ def arrival(time, FES, queue, servers):
     if users <= number_servers:
         
         # sample the service time
-        service_time = random.expovariate(1.0/SERVICE)
-
+        service_time=serviceTimeGeneration()
+        
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
         
-        if assignment == "ordered":
-            j=0
-        elif assignment == "random":
-            random.shuffle(servers)
-            j=0
-        elif assignment == "roundRobin":
-            j=counter
-            if counter == len(servers):
-                counter=0
-        elif assignment == "leastCostly":
-            j=0
-            servers.sort(key=lambda x: x.cost, reverse=False)
-        
-        for i in range(j,len(servers)):
-            if servers[i].idle:           
-                servers[i].idle=False
-                servers[i].busy_time+=service_time
-                servers[i].dt=time + service_time
-                counter=i
-                break
+        server_assignment(servers,time,service_time)
         
 # ******************************************************************************
 # Departures
@@ -159,33 +142,52 @@ def departure(time, FES, queue, servers):
     # see whether there are more clients to in the line
     if users > number_servers-1:
         # sample the service time
-        service_time = random.expovariate(1.0/SERVICE)
+        service_time=serviceTimeGeneration()
 
         # schedule when the client will finish the server
         FES.put((time + service_time, "departure"))
         
-        #Modify the server list order according to the assignment algorithm 
-        if assignment == "ordered":
-            j=0
-        elif assignment == "random":
-            random.shuffle(servers)
-            j=0
-        elif assignment == "roundRobin":
-            j=counter
-        elif assignment == "leastCostly":
-            pass
-        
-        for i in range(j,len(servers)):
-            if servers[i].idle:           
-                servers[i].idle=False
-                servers[i].busy_time+=service_time
-                servers[i].dt=time + service_time
-                counter=i
-                break
+        server_assignment(servers,time,service_time)
         
     data.oldT = time
-        
     
+# ******************************************************************************
+# Service time distribution method
+# ******************************************************************************     
+def serviceTimeGeneration():        
+    if service_time_distribution == "exponential":
+        service_time = random.expovariate(1.0/SERVICE)
+    elif service_time_distribution == "constant":
+        service_time = 1.0/SERVICE
+    elif service_time_distribution == "uniform":
+        service_time = random.uniform(0, 1.0/SERVICE)
+    elif service_time_distribution == "gaussian":
+        service_time = random.gauss(1.0/SERVICE, variance)   
+    return service_time    
+        
+# ******************************************************************************
+# Server assignment method
+# ****************************************************************************** 
+def server_assignment(servers,time,service_time):
+    global counter
+    if assignment == "ordered":
+          j=0
+    elif assignment == "random":
+        random.shuffle(servers)
+        j=0
+    elif assignment == "roundRobin":
+        j=counter
+    elif assignment == "leastCostly":
+        pass
+    
+    for i in range(j,len(servers)):
+        if servers[i].idle:           
+            servers[i].idle=False
+            servers[i].busy_time+=service_time
+            servers[i].dt=time + service_time
+            counter=i
+            break
+ 
 # ******************************************************************************
 # the "main" of the simulation
 # ******************************************************************************
