@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import random
+import numpy as np
 from queue import Queue, PriorityQueue
 
 # ******************************************************************************
@@ -9,17 +10,16 @@ from queue import Queue, PriorityQueue
 LOAD = 0.85
 SERVICE = 10.0 # av service time
 ARRIVAL = SERVICE/LOAD # av inter-arrival time
-TYPE1 = 1    # is not used
-losses = False #False: infinite capacity of waiting line / True: Finite capacity of waiting line
+TYPE1 = 1    
+losses = True # False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
-number_servers=1
+number_servers=2
 assignment= "ordered" # ordered/ random / roundRobin / leastCostly; 
 service_time_distribution= "exponential" # exponential/ constant/ uniform/ gaussian/  
 variance=0.1
 users=0
 counter=0
 delayed_packets=0 # Number of packets that experience waiting delay
-BusyServer = False # True: server is currently busy; False: server is currently idle
 B=5 #Capacity of waiting line (only used if losses=True)
 MM1=[]
 server_list=[]
@@ -34,9 +34,9 @@ class Measure:
         self.dep = Ndep # Number of departures
         self.ut = NAveraegUser # Number of average users
         self.uq = NAverageUserQueue # Number of average users in queue line
-        self.oldT = OldTimeEvent 
-        self.delay = AverageDelay
-        self.wdelay = AverageWaitDelay
+        self.oldT = OldTimeEvent  
+        self.delay = AverageDelay # Time in the queue
+        self.wdelay = AverageWaitDelay # Time in the waiting line
         self.busy_time = busy_time # Time that server spends in a busy state
         self.lp=lost_packets
         
@@ -72,7 +72,6 @@ class Server(object):
 # ******************************************************************************
 def arrival(time, FES, queue, servers):
     global users
-    global counter
 
     data.arr += 1
     data.ut += users*(time-data.oldT)
@@ -116,7 +115,7 @@ def arrival(time, FES, queue, servers):
 def departure(time, FES, queue, servers):
     global users
     global delayed_packets
-    global counter
+    
     # get the first element from the queue
     client = queue.pop(0)
     
@@ -176,23 +175,25 @@ def server_assignment(servers,time,service_time):
         random.shuffle(servers)
         j=0
     elif assignment == "roundRobin":
+        if counter==len(servers):
+            counter=0
         j=counter
     elif assignment == "leastCostly":
-        pass
+        j=0
+        servers.sort(key=lambda x: x.cost, reverse=False)
     
     for i in range(j,len(servers)):
         if servers[i].idle:           
             servers[i].idle=False
             servers[i].busy_time+=service_time
             servers[i].dt=time + service_time
-            counter=i
+            counter=i+1
             break
  
 # ******************************************************************************
 # the "main" of the simulation
 # ******************************************************************************
-
-random.seed(42)  #same ramdom results
+random.seed(42) 
 
 data = Measure(0,0,0,0,0,0,0,0,0)
 
@@ -200,7 +201,7 @@ data = Measure(0,0,0,0,0,0,0,0,0)
 time = 0
 
 # the list of events in the form: (time, type)
-FES = PriorityQueue()
+FES = PriorityQueue() # PQ class that will contain all the events that can occur on the system 
 
 
 # schedule the first arrival at t=0
@@ -208,7 +209,7 @@ FES.put((0, "arrival"))
 
 
 for i in range(number_servers):
-    server_list.append(Server(i+1,True, 0,0,0, random.randint(1,10)))
+    server_list.append(Server(i+1,True, 0,0,0, abs(np.random.normal()*100)))
 
 # simulate until the simulated time reaches a constant
 while time < SIM_TIME:
