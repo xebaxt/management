@@ -10,7 +10,7 @@ from queue import Queue, PriorityQueue
 # ******************************************************************************
 SERVICE = 10.0 # av service time
 TYPE1 = 1    
-losses = False # False: infinite capacity of waiting line / True: Finite capacity of waiting line
+losses = True # False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
 number_servers=1
 assignment= "ordered" # ordered/ random / roundRobin / leastCostly; 
@@ -19,8 +19,8 @@ variance=0.1 # Only used if distribution=gaussian
 # users=0
 # counter=0
 # delayed_packets=0 # Number of packets that experience waiting delay
-B=5 #Capacity of waiting line (only used if losses=True)
-
+# B=5 #Capacity of waiting line (only used if losses=True)
+iter_B=False # False: Run program once / True: Run the program for different values of B
 
 # ******************************************************************************
 # To take the measurements
@@ -67,7 +67,7 @@ class Server(object):
 # ******************************************************************************
 # Arrivals 
 # ******************************************************************************
-def arrival(time, FES, queue, servers):
+def arrival(time, FES, queue, servers ,B):
     global users
 
     data.arr += 1
@@ -195,222 +195,243 @@ def server_assignment(servers,time,service_time):
 # the "main" of the simulation
 # ******************************************************************************
 
-#Lists to save values of each iteration
-users_queue=[]
-number_arr=[]
-number_dep=[]
-load_vector=[]
-arr_rate=[]
-dep_rate=[]
-av_num_users=[]
-av_num_users_q=[]
-av_delay=[]
-av_wdelay=[]
-av_wdelay2=[]
-actual_queue_size=[]
-mm1_vector=[]
-arrival_rate=[]
-busy_time_list=[]
-lost_p=[]
+#Capacity of waiting line (only used if losses=True)
+if losses and iter_B: #Change the value of B from 5 to 20 in steps of 5
+    a=5
+    b=25
+    lost_p_matrix=[]
+    av_delay_matrix=[]
+else:
+    a=5 # B=5
+    b=10
+    
+for B in np.arange(a, b, 5):
 
-for LOAD in np.arange(0.05, 5, 0.05): 
+    #Lists to save values of each iteration
+    users_queue=[]
+    number_arr=[]
+    number_dep=[]
+    load_vector=[]
+    arr_rate=[]
+    dep_rate=[]
+    av_num_users=[]
+    av_num_users_q=[]
+    av_delay=[]
+    av_wdelay=[]
+    av_wdelay2=[]
+    actual_queue_size=[]
+    mm1_vector=[]
+    arrival_rate=[]
+    busy_time_list=[]
+    lost_p=[]
 
-    # SERVICE = 10.0 # av service time
-    ARRIVAL   = SERVICE/LOAD # av inter-arrival time 
-    # TYPE1 = 1 
-    # SIM_TIME = 5000 #simulation time
-    arrivals=0
-    users=0
-    delayed_packets=0 #number of packets that experience waiting delay
-    MM1=[]
-    # B=5
-    # losses=True
-    server_list=[]
+    for LOAD in np.arange(0.025, 4.025, 0.025): 
     
-    random.seed(42) 
-
-    data = Measure(0,0,0,0,0,0,0,0,0)
-    
-    # the simulation time 
-    time = 0
-    
-    # the list of events in the form: (time, type)
-    FES = PriorityQueue() # PQ class that will contain all the events that can occur on the system 
-    
-    
-    # schedule the first arrival at t=0
-    FES.put((0, "arrival"))
-    
-    
-    for i in range(number_servers):
-        server_list.append(Server(i+1,True, 0,0,0, random.randint(1,10)))
-    
-    # simulate until the simulated time reaches a constant
-    while time < SIM_TIME:
-        (time, event_type) = FES.get()
-    
-        if event_type == "arrival":
-            arrival(time, FES, MM1, server_list)
-    
-        elif event_type == "departure":
-            departure(time, FES, MM1, server_list)
-            
-            
-    #Save values of each iteration **************************************************
-    users_queue.append(users)
-    number_arr.append(data.arr)
-    number_dep.append(data.dep)
-    load_vector.append(SERVICE/ARRIVAL)
-    arr_rate.append(data.arr/time)
-    dep_rate.append(data.dep/time)
-    av_num_users.append(data.ut/time)
-    av_num_users_q.append(data.uq/time)
-    actual_queue_size.append(len(MM1))
-    mm1_vector.append(MM1)
-    arrival_rate.append(1/ARRIVAL)
-    busy_time_list.append(data.busy_time)
-    lost_p.append(data.lp/data.arr)
-    if data.dep != 0:
-        av_delay.append(data.delay/data.dep)
-        av_wdelay.append(data.delay/data.dep)
-        av_wdelay2.append(data.delay/data.dep)
-    else:
-        av_delay.append(0)
+        # SERVICE = 10.0 # av service time
+        ARRIVAL   = SERVICE/LOAD # av inter-arrival time 
+        # TYPE1 = 1 
+        # SIM_TIME = 5000 #simulation time
+        arrivals=0
+        users=0
+        delayed_packets=0 #number of packets that experience waiting delay
+        MM1=[]
+        # B=5
+        # losses=True
+        server_list=[]
         
-    # print output data
-    print("MEASUREMENTS ***********************************************************")       
-    print("\nNo. of users in the queue:",users,"\nNo. of arrivals =",data.arr,"- No. of departures =",data.dep)
-    print("Number of lost packets: ",data.lp)
-    print("loss probability: ",data.lp/data.arr)
-    print("\nLoad: ",SERVICE/ARRIVAL)
-    print("Arrival rate: ",data.arr/time," - Departure rate: ",data.dep/time) #lambda and mu
-    print("\nAverage number of users: ",data.ut/time) #Mean number of customers in the queue E[N]
-    print("Average number of users in queuing line: ",data.uq/time) #Mean number of customers in waiting line E[Nw]
-    if data.dep>0:
-        print("\nAverage delay: ",data.delay/data.dep)  #Average time in the queue E[T]
-        print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting lineE[Tw]
-    else:
-        print("\nAverage delay: No departures")  #Average time in the queue E[T]    
-        print("Average waiting delay: No departures") #Average time in the waiting lineE[Tw]
-    if delayed_packets>0:
-        print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
-    else:
-        print("Average waiting delay considering only packets that experience delay: No delayed packages")
-    print("\nAlgorithm to assign new requests to an available server:", assignment)
-    server_list.sort(key=lambda x: x.id, reverse=False)
-    for i in range(len(server_list)):
-        print("\n***Server ",i+1,"***")
-        print("  Busy time:",server_list[i].busy_time)
-        if server_list[i].dep_num>0:
-            print("  Average service time:",server_list[i].busy_time/server_list[i].dep_num)
-        else:
-            print("  Average service time: Not used")
-        print("  No. of departures:",server_list[i].dep_num)
-        print("  Cost:",server_list[i].cost)
-    print("\nSimulation time: ",SIM_TIME)
-    print("\nActual queue size: ",len(MM1))
+        random.seed(42) 
     
-    if len(MM1)>0:
-        print("Arrival time of the last element in the queue:",MM1[len(MM1)-1].arrival_time)
- 
+        data = Measure(0,0,0,0,0,0,0,0,0)
+        
+        # the simulation time 
+        time = 0
+        
+        # the list of events in the form: (time, type)
+        FES = PriorityQueue() # PQ class that will contain all the events that can occur on the system 
+        
+        
+        # schedule the first arrival at t=0
+        FES.put((0, "arrival"))
+        
+        
+        for i in range(number_servers):
+            server_list.append(Server(i+1,True, 0,0,0, abs(np.random.normal()*100)))
+        
+        # simulate until the simulated time reaches a constant
+        while time < SIM_TIME:
+            (time, event_type) = FES.get()
+        
+            if event_type == "arrival":
+                arrival(time, FES, MM1, server_list, B)
+        
+            elif event_type == "departure":
+                departure(time, FES, MM1, server_list)
+                
+                
+        #Save values of each iteration **************************************************
+        users_queue.append(users)
+        number_arr.append(data.arr)
+        number_dep.append(data.dep)
+        load_vector.append(LOAD)
+        arr_rate.append(data.arr/time)
+        dep_rate.append(data.dep/time)
+        av_num_users.append(data.ut/time)
+        av_num_users_q.append(data.uq/time)
+        actual_queue_size.append(len(MM1))
+        mm1_vector.append(MM1)
+        arrival_rate.append(1/ARRIVAL)
+        busy_time_list.append(server_list[i].busy_time)
+        lost_p.append(data.lp/data.arr)
+        if data.dep != 0:
+            av_delay.append(data.delay/data.dep)
+            av_wdelay.append(data.delay/data.dep)
+            av_wdelay2.append(data.delay/data.dep)
+        else:
+            av_delay.append(0)
+            
+        # print output data
+        print("\n\nMEASUREMENTS ***********************************************************")       
+        print("\nNo. of users in the queue:",users,"\nNo. of arrivals =",data.arr,"- No. of departures =",data.dep)
+        print("Number of lost packets: ",data.lp)
+        print("loss probability: ",data.lp/data.arr)
+        print("\nLoad: ",SERVICE/ARRIVAL)
+        print("Arrival rate: ",data.arr/time," - Departure rate: ",data.dep/time) #lambda and mu
+        print("\nAverage number of users: ",data.ut/time) #Mean number of customers in the queue E[N]
+        print("Average number of users in queuing line: ",data.uq/time) #Mean number of customers in waiting line E[Nw]
+        if data.dep>0:
+            print("\nAverage delay: ",data.delay/data.dep)  #Average time in the queue E[T]
+            print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting lineE[Tw]
+        else:
+            print("\nAverage delay: No departures")  #Average time in the queue E[T]    
+            print("Average waiting delay: No departures") #Average time in the waiting lineE[Tw]
+        if delayed_packets>0:
+            print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
+        else:
+            print("Average waiting delay considering only packets that experience delay: No delayed packages")
+        print("\nAlgorithm to assign new requests to an available server:", assignment)
+        server_list.sort(key=lambda x: x.id, reverse=False)
+        for i in range(len(server_list)):
+            print("\n***Server ",i+1,"***")
+            print("  Busy time:",server_list[i].busy_time)
+            if server_list[i].dep_num>0:
+                print("  Average service time:",server_list[i].busy_time/server_list[i].dep_num)
+            else:
+                print("  Average service time: Not used")
+            print("  No. of departures:",server_list[i].dep_num)
+            print("  Cost:",server_list[i].cost)
+        print("\nSimulation time: ",SIM_TIME)
+        print("\nActual queue size: ",len(MM1))
+        
+        if len(MM1)>0:
+            print("Arrival time of the last element in the queue:",MM1[len(MM1)-1].arrival_time)
+         
+    if losses and iter_B:
+        av_delay_matrix.append(av_delay)
+        lost_p_matrix.append(lost_p)
     
 # ******************************************************************************
-# Ploting class
+# Ploting method
 # ******************************************************************************        
-# if number_servers == 1:
+def plotingMetrics():
+    plt.figure()
+    plt.plot(load_vector,number_arr, label='No. of arrivals')
+    plt.plot(load_vector,number_dep, label='No. of departures')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('No. of arrivals and departures vs load')
+    plt.legend()
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,arr_rate,label='Arrival rate')
+    plt.plot(load_vector,dep_rate,label='Departure rate')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Arrival and departure rates vs load')
+    plt.legend()
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,av_num_users)
+    plt.ylabel('Average number of packets')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Average number of packets in the queue E[N]')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,av_num_users_q)
+    plt.ylabel('Average number of packets in waiting line')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Average number of packets in waiting line E[Nw]')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,av_delay)
+    plt.ylabel('Time [s]')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Average time in the queue E[T]')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,av_wdelay)
+    plt.ylabel('Average waiting delay')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Average waiting delay')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,av_wdelay2)
+    plt.ylabel('Average waiting delay')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Average waiting delay considering only packets that experience delay')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,busy_time_list)
+    plt.ylabel('Busy time')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Busy time')
+    plt.grid()
+    plt.show()
+    
+    plt.figure()
+    plt.plot(load_vector,lost_p)
+    plt.ylabel('Lost probability')
+    plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+    plt.title('Lost probability')
+    plt.grid()
+    plt.show()
+    
+    if losses and iter_B:
+        plt.figure()
+        x=0
+        for list in lost_p_matrix:
+            plt.plot(load_vector,list , label='B='+str(x+5))
+            x=x+5
+        plt.ylabel('Lost probability')
+        plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+        plt.title('Lost probability')
+        plt.legend()
+        plt.grid()
+        plt.show()   
+        
+    if losses and iter_B:
+        plt.figure()
+        x=0
+        for list in av_delay_matrix:
+            plt.plot(load_vector,list , label='B='+str(x+5))
+            x=x+5
+        plt.ylabel('Time [s]')
+        plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+        plt.title('Average time in the queue E[T]')
+        plt.legend()
+        plt.grid()
+        plt.show()  
     
 
-
-
-#Ploting*****************************************************************************
-plt.figure()
-plt.plot(LOAD,users_queue)
-plt.ylabel('No. of users in the queue')
-plt.xlabel(r'$\lambda$')
-plt.title('No. of users in the queue')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,number_arr)
-plt.ylabel('No. of arrivals')
-plt.xlabel(r'$\lambda$')
-plt.title('No. of arrivals')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,number_dep)
-plt.ylabel('No. of departures')
-plt.xlabel(r'$\lambda$')
-plt.title('No. of departures')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,arr_rate)
-plt.ylabel('Arrival rate')
-plt.xlabel(r'$\lambda$')
-plt.title('Arrival rate')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,dep_rate)
-plt.ylabel('Departure rate')
-plt.xlabel(r'$\lambda$')
-plt.title('Departure rate')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,av_num_users)
-plt.ylabel('Average number of users')
-plt.xlabel(r'$\lambda$')
-plt.title('Average number of users')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,av_num_users_q)
-plt.ylabel('Average number of users in queuing line')
-plt.xlabel(r'$\lambda$')
-plt.title('Average number of users in queuing line')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,av_delay)
-plt.ylabel('Average delay')
-plt.xlabel(r'$\lambda$')
-plt.title('Average delay')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,av_wdelay)
-plt.ylabel('Average waiting delay')
-plt.xlabel(r'$\lambda$')
-plt.title('Average waiting delay')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,av_wdelay2)
-plt.ylabel('Average waiting delay')
-plt.xlabel(r'$\lambda$')
-plt.title('Average waiting delay considering only packets that experience delay')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,busy_time_list)
-plt.ylabel('Busy time')
-plt.xlabel(r'$\lambda$')
-plt.title('Busy time')
-plt.grid()
-
-plt.figure()
-plt.plot(arrival_rate,actual_queue_size)
-plt.ylabel('Actual queue size')
-plt.xlabel(r'$\lambda$')
-plt.title('Actual queue size')
-plt.grid()
-
-
-plt.figure()
-plt.plot(arrival_rate,lost_p)
-plt.ylabel('Lost probability')
-plt.xlabel(r'$\lambda$')
-plt.title('Lost probability')
-plt.grid()
+plotingMetrics() # Plot metrics
