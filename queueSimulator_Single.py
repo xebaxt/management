@@ -7,20 +7,20 @@ from queue import Queue, PriorityQueue
 # ******************************************************************************
 # Constants
 # ******************************************************************************
-LOAD = 0.85
+LOAD = 4
 SERVICE = 10.0 # av service time
 ARRIVAL = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    
 losses = True # False: infinite capacity of waiting line / True: Finite capacity of waiting line
-SIM_TIME = 5000000
-number_servers=1
-assignment= "ordered" # ordered/ random / roundRobin / leastCostly; 
+SIM_TIME = 500000
+number_servers=2
+assignment= "roundRobin" # random / roundRobin / leastCostly; 
 service_time_distribution= "exponential" # exponential/ constant/ uniform/ gaussian/  
 variance=0.1
 users=0
 counter=0
 delayed_packets=0 # Number of packets that experience waiting delay
-B=5 #Capacity of waiting line (only used if losses=True)
+B=2 #Capacity of waiting line (only used if losses=True)
 MM1=[]
 server_list=[]
 
@@ -94,20 +94,21 @@ def arrival(time, FES, queue, servers):
 
         # insert the record in the queue
         queue.append(client)
+        
+        # if the server is idle start the service
+        if users <= number_servers:
+            
+            # sample the service time
+            service_time=serviceTimeGeneration()
+            
+            # schedule when the client will finish the server
+            FES.put((time + service_time, "departure"))
+            
+            server_assignment(servers,time,service_time)
     else:
         data.lp +=1
         users -=1
 
-    # if the server is idle start the service
-    if users <= number_servers:
-        
-        # sample the service time
-        service_time=serviceTimeGeneration()
-        
-        # schedule when the client will finish the server
-        FES.put((time + service_time, "departure"))
-        
-        server_assignment(servers,time,service_time)
         
 # ******************************************************************************
 # Departures
@@ -169,26 +170,28 @@ def serviceTimeGeneration():
 # ****************************************************************************** 
 def server_assignment(servers,time,service_time):
     global counter
-    if assignment == "ordered":
-          j=0
-    elif assignment == "random":
-        random.shuffle(servers)
-        j=0
-    elif assignment == "roundRobin":
-        if counter==len(servers):
-            counter=0
-        j=counter
-    elif assignment == "leastCostly":
-        j=0
-        servers.sort(key=lambda x: x.cost, reverse=False)
-    
-    for i in range(j,len(servers)):
-        if servers[i].idle:           
-            servers[i].idle=False
-            servers[i].busy_time+=service_time
-            servers[i].dt=time + service_time
-            counter=i+1
-            break
+    j=0
+    assigned=False
+    while assigned==False:
+        if assignment == "random":
+            random.shuffle(servers)
+        elif assignment == "roundRobin":
+            if counter==len(servers):
+                counter=0
+            j=counter
+        elif assignment == "leastCostly":
+            servers.sort(key=lambda x: x.cost, reverse=False)
+        
+        for i in range(j,len(servers)):
+            if servers[i].idle:           
+                servers[i].idle=False
+                servers[i].busy_time+=service_time
+                servers[i].dt=time + service_time
+                counter=i+1
+                assigned=True
+                break
+            else:
+                counter=number_servers
  
 # ******************************************************************************
 # the "main" of the simulation
@@ -196,6 +199,7 @@ def server_assignment(servers,time,service_time):
 random.seed(42) 
 
 data = Measure(0,0,0,0,0,0,0,0,0)
+overall_cost=0
 
 # the simulation time 
 time = 0
@@ -247,6 +251,8 @@ for i in range(len(server_list)):
         print("  Average service time: Not used")
     print("  No. of departures:",server_list[i].dep_num)
     print("  Cost:",server_list[i].cost)
+    overall_cost=overall_cost+(((server_list[i].busy_time)/3600)*server_list[i].cost)
+print("\nOverall cost: ",overall_cost)
 print("\nSimulation time: ",SIM_TIME)
 print("\nActual queue size: ",len(MM1))
 
