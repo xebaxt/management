@@ -8,13 +8,13 @@ from queue import Queue, PriorityQueue
 # ******************************************************************************
 # Constants
 # ******************************************************************************
-SERVICE = 20.0 # av service time
+SERVICE = 10.0 # av service time
 TYPE1 = 1    
-losses = True # False: infinite capacity of waiting line / True: Finite capacity of waiting line
+losses = False # False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
-number_servers=2
+number_servers=1
 assignment= "random" # / random / roundRobin / leastCostly; 
-service_time_distribution= "exponential" # exponential/ constant/ uniform/ gaussian/  
+service_time_distribution= "gaussian" # exponential/ constant/ uniform/ gaussian/  
 variance=0.1 # Only used if distribution=gaussian
 iter_B=False # False: Run program once / True: Run the program for different values of B
 
@@ -152,11 +152,11 @@ def serviceTimeGeneration():
     if service_time_distribution == "exponential":
         service_time = random.expovariate(1.0/SERVICE)
     elif service_time_distribution == "constant":
-        service_time = 1.0/SERVICE
+        service_time = SERVICE
     elif service_time_distribution == "uniform":
-        service_time = random.uniform(0, 1.0/SERVICE)
+        service_time = random.uniform(SERVICE-1, SERVICE+1)
     elif service_time_distribution == "gaussian":
-        service_time = random.gauss(1.0/SERVICE, variance)   
+        service_time = random.gauss(SERVICE, variance)   
     return service_time    
       
   
@@ -290,8 +290,8 @@ for B in capacity:
         lost_p.append(data.lp/data.arr)
         if data.dep != 0:
             av_delay.append(data.delay/data.dep)
-            av_wdelay.append(data.delay/data.dep)
-            av_wdelay2.append(data.delay/data.dep)
+            av_wdelay.append(data.wdelay/data.dep)
+            av_wdelay2.append(data.wdelay/delayed_packets)
         else:
             av_delay.append(0)
         overall_cost_list.append(overall_cost)
@@ -393,15 +393,15 @@ def plotingMetrics():
         
         plt.figure()
         plt.plot(load_vector,av_wdelay)
-        plt.ylabel('Average waiting delay')
+        plt.ylabel('Time [s]')
         plt.xlabel(r'$Load:\rho=\lambda/\mu$')
-        plt.title('Average waiting delay')
+        plt.title('Average waiting delay E[Tw]')
         plt.grid()
         plt.show()
         
         plt.figure()
         plt.plot(load_vector,av_wdelay2)
-        plt.ylabel('Average waiting delay')
+        plt.ylabel('Time [s]')
         plt.xlabel(r'$Load:\rho=\lambda/\mu$')
         plt.title('Average waiting delay considering only packets that experience delay')
         plt.grid()
@@ -491,15 +491,58 @@ plotingMetrics() # Plot metrics
 # plt.grid()
 # plt.show() 
 
-# plt.figure()
-# plt.plot(load_vector,lossp2 , label='E[Ts]= 2s')
-# plt.plot(load_vector,lossp10 , label='E[Ts]= 10s')
-# plt.plot(load_vector,lossp20 , label='E[Ts]= 20s')
-# plt.plot(load_vector,lossp80 , label='E[Ts]= 80s')
-# plt.xlim(0, 4) 
-# plt.ylabel('Loss probability')
-# plt.xlabel(r'$Load:\rho=\lambda/\mu$')
-# plt.title('Loss probability')
-# plt.legend()
-# plt.grid()
-# plt.show()
+plt.figure()
+plt.plot(load_vector,wdconstant , label='Constant')
+plt.plot(load_vector,wdexp , label='Exponential')
+plt.plot(load_vector,wduni , label='Uniform')
+plt.plot(load_vector,wdgauss , label='Gaussian')
+plt.xlim(0.7, 1) 
+plt.ylim(0, 2500) 
+plt.ylabel('Time [s]')
+plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+plt.title('Average waiting delay E[Tw]') 
+plt.legend(loc='upper left')
+plt.grid()
+plt.show() 
+
+plt.figure()
+plt.plot(load_vector,wdconstantt , label='Constant')
+plt.plot(load_vector,wdexpt , label='Exponential')
+plt.plot(load_vector,wdunit , label='Uniform')
+plt.plot(load_vector,wdgausst , label='Gaussian')
+plt.xlim(0.7, 1) 
+plt.ylim(0, 2500) 
+plt.ylabel('Time [s]')
+plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+plt.title('Average time in the queue E[T]') 
+plt.legend(loc='upper left')
+plt.grid()
+plt.show() 
+
+plt.figure()
+plt.plot(load_vector,constanten , label='Constant')
+plt.plot(load_vector,expen , label='Exponential')
+plt.plot(load_vector,unien , label='Uniform')
+plt.plot(load_vector,gaussen , label='Gaussian')
+plt.xlim(0.7, 1) 
+plt.ylim(0, 250) 
+plt.ylabel('Average number of packets')
+plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+plt.title('Average number of packets in the queue E[N]')
+plt.legend(loc='upper left')
+plt.grid()
+plt.show() 
+
+plt.figure()
+plt.plot(load_vector,constantenw , label='Constant')
+plt.plot(load_vector,expenw , label='Exponential')
+plt.plot(load_vector,unienw , label='Uniform')
+plt.plot(load_vector,gaussenw , label='Gaussian')
+plt.xlim(0.7, 1) 
+plt.ylim(0, 250) 
+plt.ylabel('Average number of packets')
+plt.xlabel(r'$Load:\rho=\lambda/\mu$')
+plt.title('Average number of packets in waiting line E[Nw]')
+plt.legend(loc='upper left')
+plt.grid()
+plt.show()

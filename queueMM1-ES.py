@@ -11,7 +11,7 @@ SERVICE = 10.0 # av service time
 ARRIVAL   = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    # is not used
 
-SIM_TIME = 5 #00000
+SIM_TIME = 500000
 # SIM_TIME = 500000000
 
 arrivals=0

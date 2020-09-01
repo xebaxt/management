@@ -7,14 +7,14 @@ from queue import Queue, PriorityQueue
 # ******************************************************************************
 # Constants
 # ******************************************************************************
-LOAD = 4
+LOAD = 0.85
 SERVICE = 10.0 # av service time
 ARRIVAL = SERVICE/LOAD # av inter-arrival time
 TYPE1 = 1    
-losses = True # False: infinite capacity of waiting line / True: Finite capacity of waiting line
+losses = False # False: infinite capacity of waiting line / True: Finite capacity of waiting line
 SIM_TIME = 500000
-number_servers=2
-assignment= "roundRobin" # random / roundRobin / leastCostly; 
+number_servers=1
+assignment= "leastCostly" # random / roundRobin / leastCostly; 
 service_time_distribution= "exponential" # exponential/ constant/ uniform/ gaussian/  
 variance=0.1
 users=0
@@ -130,8 +130,6 @@ def departure(time, FES, queue, servers):
     data.ut += users*(time-data.oldT)
     if users>number_servers:
         data.uq += (users-number_servers)*(time-data.oldT)
-    
-    if users>number_servers:
         delayed_packets +=1
         nextclient=queue[number_servers-1]
         data.wdelay += (time-nextclient.arrival_time)
