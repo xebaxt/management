@@ -203,7 +203,7 @@ else:
 
 server_cost=[]
 for i in range(number_servers):
-    server_cost.append(100-(i*80))
+    server_cost.append(abs(100-(i*80)))
 
 for B in capacity:
 
@@ -291,11 +291,14 @@ for B in capacity:
         if data.dep != 0:
             av_delay.append(data.delay/data.dep)
             av_wdelay.append(data.wdelay/data.dep)
-            av_wdelay2.append(data.wdelay/delayed_packets)
         else:
             av_delay.append(0)
         overall_cost_list.append(overall_cost)
         
+        if delayed_packets != 0:
+            av_wdelay2.append(data.wdelay/delayed_packets)
+        else:
+            av_wdelay2.append(0)
         # print output data
         print("\n\nMEASUREMENTS ***********************************************************")       
         print("\nNo. of users in the queue:",users,"\nNo. of arrivals =",data.arr,"- No. of departures =",data.dep)

@@ -20,7 +20,7 @@ variance=0.1
 users=0
 counter=0
 delayed_packets=0 # Number of packets that experience waiting delay
-B=2 #Capacity of waiting line (only used if losses=True)
+B=5 #Capacity of waiting line (only used if losses=True)
 MM1=[]
 server_list=[]
 
@@ -233,7 +233,7 @@ print("Arrival rate: ",data.arr/time," - Departure rate: ",data.dep/time) #lambd
 print("\nAverage number of users: ",data.ut/time) #Mean number of customers in the queue E[N]
 print("Average number of users in queuing line: ",data.uq/time) #Mean number of customers in waiting line E[Nw]
 print("\nAverage delay: ",data.delay/data.dep)  #Average time in the queue E[T]
-print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting lineE[Tw]
+print("Average waiting delay: ",data.wdelay/data.dep) #Average time in the waiting line E[Tw]
 if delayed_packets>0:
     print("Average waiting delay considering only packets that experience delay: ",data.wdelay/delayed_packets)
 else:
